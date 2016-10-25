@@ -1,24 +1,19 @@
 gmmobj <- function (sigma) {
   delta <- meanval(sigma)
   if (max(is.nan(delta))==1) {
-    f <-1e+10
-  }
-  else {
-    x1.i <- cbind(rep(1,501), x1)
-    temp1 <- t(x1.i) %*% IV
+    f <- 1e+10
+  } else {
+    temp1 <- t(x1) %*% IV
     temp2 <- t(delta) %*% IV
-    W <- temp1 %*% invA %*% t(temp1)
-    B <- temp1 %*% invA %*% t(temp2)
-    theta1 <- solve(W,B)
-    #theta1<-inv(temp1%*%invA%*%t(temp1))%*%temp1%*%invA%*%t(temp2)
-    gmmresid <- delta - x1.i %*% theta1
-    #gmmresid
-    temp3 <- t(gmmresid) %*% IV
-    f <- temp3 %*% invA %*% t(temp3)
+    theta1<- solve(temp1%*%invA%*%t(temp1)) %*% (temp1%*%invA%*%t(temp2))
+    rm(temp1, temp2)
+    gmmresid <- delta - x1 %*% theta1
+    temp1 <- t(gmmresid) %*% IV
+    f <- temp1 %*% invA %*% t(temp1)
+    rm(temp1)
   }
+  gmmresid <<- gmmresid
+  #print('GMM objective:  ', as.numeric(f))
   return(as.numeric(f))
-  
-  #coef1 <<- theta1
-  #store gmmresid
 }
 

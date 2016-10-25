@@ -27,7 +27,7 @@ meanval<-function(sigma){
     t<-abs(mval-mvalold)
     norm<-max(t)
     avgnorm<-mean(t)
-    mvalold <- mval
+    mvalold <<- mval
     i<-i+1
   }
   
@@ -43,7 +43,3 @@ meanval<-function(sigma){
   nb.it <<- i
   return(log(mval))    # here we remove the 'exp' that was implied in the loop.  
 }
-
-class(y.MS.vec)
-length(y.MS.vec)
-head(y.MS.vec)

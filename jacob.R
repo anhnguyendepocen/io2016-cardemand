@@ -1,9 +1,11 @@
 #testing
-sigma <- 0.005
-x2 <- size
-mval <- mvalold
+#sigma <- 0.005
+#x2 <- size
+#mval <- mvalold
 
-jacob <- function(x2, sigma){
+jacob <- function(x2, mval, sigma){
+  #delta <- meanval(sigma)
+  #mval <- exp(delta)
   expmu <- exp(mufunc(x2, sigma))
   shares <- ind_sh(mval, expmu)
   rm(expmu)

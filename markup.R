@@ -23,13 +23,12 @@ markups <- function(x1, x2, z, sigma, firmid, s){
   shares <- ind_sh(mval, expmu)
   rm(expmu)
   
-  
-   x1.i<-cbind(rep(1,501),x1)
-   temp1 <- t(x1.i) %*% z
+   temp1 <- t(x1) %*% z
    temp2 <- t(delta) %*% z
    W <- temp1%*%invA%*%t(temp1)
    B <- temp1%*%invA%*%t(temp2)
    theta1 <- solve(W,B)
+   rm(temp1, temp2, W, B)
 
   alpha <- -theta1[length(theta1)]
   

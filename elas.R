@@ -9,7 +9,7 @@
 # p <- df %>% select(p_adj) %>% as.matrix
 # s <- df %>% select(s) %>% as.matrix
 
-#tt <- elas(x1, x2, IV, sigma, p, s)
+#tt <- elas(x1, size, IV, sigma, p, s) 
 
 elas <- function(x1, x2, z, sigma, p, s){
   delta <- meanval(sigma)
@@ -20,8 +20,7 @@ elas <- function(x1, x2, z, sigma, p, s){
   rm(expmu)
   
   
-  x1.i<-cbind(rep(1,501),x1)
-  temp1 <- t(x1.i) %*% z
+  temp1 <- t(x1) %*% z
   temp2 <- t(delta) %*% z
   W <- temp1%*%invA%*%t(temp1)
   B <- temp1%*%invA%*%t(temp2)
@@ -40,7 +39,7 @@ elas <- function(x1, x2, z, sigma, p, s){
     #f[n:yrindex[t]] <- - solve(H) %*% f1[n:yrindex[t]]
     p_temp <- p[n:yrindex[t]]
     s_temp <- s[n:yrindex[t]]
-    f[n:yrindex[t], n:yrindex[t]] <- - alpha*H* (p_temp %*% t(s_temp))
+    f[n:yrindex[t], n:yrindex[t]] <- - alpha*H*(p_temp %*% t(s_temp))
     n <- yrindex[t] + 1
   }
   rm(n, H1, temp1,t, p_temp, s_temp, H)
