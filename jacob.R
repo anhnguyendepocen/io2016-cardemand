@@ -1,18 +1,18 @@
 #testing
-#sigma <- 0.005
+#theta2 <- 0.005
 #x2 <- size
 #mval <- mvalold
 
-jacob <- function(x2, mval, sigma){
-  #delta <- meanval(sigma)
+jacob <- function(mval, theta2, x1, x2, IV, v){
+  #delta <- meanval(theta2)
   #mval <- exp(delta)
-  expmu <- exp(mufunc(x2, sigma))
+  expmu <- exp(mufunc(theta2, x1, x2, IV, v))
   shares <- ind_sh(mval, expmu)
   rm(expmu)
   
   f1 <- matrix(0, nrow = JT, ncol = 1)
   
-  # computing (partial share)/(partial sigma)
+  # computing (partial share)/(partial theta2)
   xv <- (x2 %*% rep(1,ns))*v
   temp1 <- cumsum(xv*shares)
   sum1 <- temp1[yrindex]

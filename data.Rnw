@@ -1,0 +1,83 @@
+\section{Data and Results}
+
+\subsection{Data}
+
+The price variable is the retail price in thousands of 1993 US dollars. As in BLP, I use the Consumer Price Index to deflate, thus should have similar prices. The quantity variable is the number of sales of a given model in the US market, in 1000 units. I observe sales, prices and car characteristic from 1977 until 1981. BLP's sample includes mine but also data from 1971 until 1990. My panel has \Sexpr{dim(cardata)[1]} product/year observations.  Overall, there are \Sexpr{dim(distinct(cardata, firmids, name))[1]} distinct car models. The panel is unbalanced due to some models appearing only in a subset of markets. BLP's model restrict different products to have conditional distribution-independent unobservables, but "the unobservables for different years of the same model are allowed to be freely correlated". 
+
+Instead of using dollars per mile (DpM), I use the inverse measure : miles per dollar (MpD = Miles / Gallon * Price of a gallon gasoline adjusted for inflation = 1/DpM). The number of miles one can drive per dollar spent on gasoline is a better measure of fuel efficiency, and the obtained estimate is comparable to BLP's. As discussed above, the supply side is assumed to follow Bertrand-Nash competition between multi-product firms. Thus, for each product, I  identify the brand/manufacturer. Brands that are from the same manufacturers are pooled together : for instance, Audi and Volswagen (7); Buick, Cadillac, Chevrolet and Pontiac (General Motors, 19). The coutry of origin of each product is the country of the manufacturer. I scale the variables of interest to match those in the BLP data, in order to get comparable estimate magnitudes.
+
+
+
+<< desc_stats, eval = TRUE, echo = FALSE, results = 'asis'>>=
+desc_stats <- select(cardata, year, q) %>% group_by(year) %>% summarize_all(funs(mean)) %>%
+  left_join(select(cardata, year, q, p_adj, japan, euro, hp2wt, size, air, mpg, mpd) %>% group_by(year) %>% summarize_each(funs(weighted.mean(., q)), -q), by = "year")
+desc_stats <- left_join(count(group_by(cardata, year)), desc_stats, by = "year")
+
+strCaption <- paste0("Descriptive Statistics")
+print(xtable(desc_stats, digits=3, caption=strCaption, label="tbl:desc_stats"),
+      size="footnotesize", include.rownames=FALSE, include.colnames=FALSE,
+      caption.placement="top", hline.after=NULL,
+      add.to.row = list(pos = list(-1, nrow(desc_stats)),
+                        command = c(paste("\\toprule \n",
+                                          "Year & No. of Models & Quantity & Price  & Japan & Euro & HP/Wt & Size & A/C & MpG & MpD \\\\\n",
+                                          "\\midrule \n"),
+                                    "\\bottomrule \n")
+      )
+)
+
+stat1 <- (100*(desc_stats$q[desc_stats$year == 1977] - desc_stats$q[desc_stats$year == 1981])/desc_stats$q[desc_stats$year == 1977])
+stat2 <- 100*desc_stats$air[desc_stats$year == 1981]
+@
+
+<< desc_stats2, eval = TRUE, echo = FALSE, results = 'asis'>>=
+desc_stats2 <- select(cardata, year, q, door3, door4, door5, at, ps, drv,  hp, wt, wb) %>% group_by(year) %>% summarize_each(funs(weighted.mean(., q)), -q)
+
+strCaption <- paste0("Descriptive Statistics - continued")
+print(xtable(desc_stats2, digits=3, caption=strCaption, label="tbl:desc_stats2"),
+      size="footnotesize", include.rownames=FALSE, include.colnames=FALSE,
+      caption.placement="top", hline.after=NULL,
+      add.to.row = list(pos = list(-1, nrow(desc_stats2)),
+                        command = c(paste("\\toprule \n",
+                                          "Year & 3 doors & 4 doors & 5 doors  & Automatic & Power steering & Front wheel drive & Horsepower & Weight & Wheelbase \\\\\n",
+                                          "\\midrule \n"),
+                                    "\\bottomrule \n")
+      )
+)
+@
+
+
+<< cont_diff, eval = TRUE, echo = FALSE, results = 'asis'>>=
+cont_diff <- select(cardata, p_adj, q, hp2wt, hp, wt, wb, size, mpd, mpg) %>% summarize_all(funs(mean)) %>%
+   bind_rows(select(cardata, p_adj, q, hp2wt, hp, wt, wb, size, mpd, mpg) %>% summarize_all(funs(median))) %>%
+ bind_rows(select(cardata, p_adj, q, hp2wt, hp, wt, wb, size, mpd, mpg) %>% summarize_all(funs(sd))) %>%
+ bind_rows(select(cardata, p_adj, q, hp2wt, hp, wt, wb, size, mpd, mpg) %>% summarize_all(funs(min))) %>%
+ bind_rows(select(cardata, p_adj, q, hp2wt, hp, wt, wb, size, mpd, mpg) %>% summarize_all(funs(max)))
+rownames(cont_diff) <- c("Mean", "Median", "SD", "Min", "Max")
+colnames(cont_diff) <- c("Price", "Sales", "HP/Wt", "HP", "Weight", "Wheelbase", "Size", "MpD", "MpG")
+cont_diff <- t(cont_diff)
+#cont_diff <- cbind(c("Price", "Sales", "HP/Wt", "HP", "Weight", "Wheelbase", "Size", "MpD", "MpG"), cont_diff)
+
+
+strCaption <- paste0("Dispersion of continuous demand characteristics")
+print(xtable(cont_diff, digits=3, caption=strCaption, label="tbl3:dispersion_char"),
+      size="footnotesize", include.rownames=TRUE, include.colnames=FALSE,
+      caption.placement="top", hline.after=NULL,
+      add.to.row = list(pos = list(-1, nrow(cont_diff)),
+                        command = c(paste("\\toprule \n",
+                                          "Car characteristic & Mean & Median & SD & Min & Max\\\\\n",
+                                          "\\midrule \n"),
+                                    "\\bottomrule \n")
+      )
+)
+@
+
+Tables \ref{tbl:desc_stats} and \ref{tbl:desc_stats2} provide summary statistics for the car sales, and the mean prices, and characteristics, weighted by sales.  Sales are in 1000 of cars sold, prices are in 1000 USD (1983). Horsepower per weight (HP/Wt) is in HP per 10 lbs. Size is measured as length*width of the car, in 10,000 square inches, e.g. a size of 0.8 is then 8,000 square inches. Related measures are the wheelbase in meters, and the weight. My data is not exactly similar to the one in BLP: 1 to 4 models less in my sample each year. However, this does not substantially affect the level of mean characteristics, nor their overall trends.  Car sales decreased by \Sexpr{round(stat1, digits = 0)} \% on average during the sample period, but prices increased, as well as fuel cost-efficiency. Only \Sexpr{round(stat2, digits = 1)} \% of new cars had air-conditioning (A/C). The variables weight and wheelbase are highly (> 0.9) correlated with the size of the vehicule. To avoid problems of near multi-collinearity, I exclude both from the following regressions and keep only \emph{size}. Faced with two cars of the same overall size, I can hardly think of any reason why a car buyer would choose one over the other because of weight or the distance between tyre axes! Arguably, size is also the most salient information out of the three measures, and the easiest to assess for a buyer. 
+
+Table \ref{tbl3:dispersion_char} summarizes the distribution of the continuous car characteristics. Continuous car characteristics enlarge the space of possible product differenctiation, relative to discrete attributes like the number of doors or whether a car has automatic transmission or not. Car size varies from 8 to 18 thousand square inches. To give an idea, a hatchback Honda Civic is around 8,000 square inches, and a Pontiac F-Bird is around 14,000 sqin. Fig \ref{fig:size_dist} shows that the distribution of sizes among new cars in 1977 and in 1981 is wide and has fat tails, an indication of a lot of product differenciation along this dimension.
+
+<<size_dist, eval=TRUE, echo = FALSE, dev='png', fig.lp="fig:size_dist", fig.cap = 'Car Size Distribution'>>=
+m <- ggplot(filter(cardata, year %in% c(1977, 1981)), aes(x = size))
+m <- m + geom_histogram(colour = "gray30", fill = "gray30", binwidth = 0.03) + scale_y_sqrt() +   geom_density(colour = "black")
+m <- m + facet_grid(year ~ .)
+m
+@

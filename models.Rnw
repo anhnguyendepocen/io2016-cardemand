@@ -1,0 +1,82 @@
+\section{Demand models}
+
+The primitives of the demand models are an assumption of utility maximizing buyers, and a functional form for their utilities. In each of the following models, I assume an individual (indirect) utility $u_{jt,i}$ from buying a car that is linear in a car's own characteristics $x_{jt}$ and own price $p_{jt}$, following the discrete choice literature. 
+
+\begin{equation}
+u_{jt,i} = x_{jt}' \beta_i - p_{jt} \alpha_i + \xi_{jt} + \epsilon_{jt,i}
+\label{eq:gen_utility}
+\end{equation}
+ The utility is decomposed into a mean utility part $\delta_{jt} = x_{jt}' \bar{\beta_i} - p_{jt} \bar{\alpha_i} + \xi_{jt}$ and an individual specific part $\mu_{jt,i} = \sum\limits_{k \in K} x_j^k \sigma^k \zeta^k_i + \epsilon_{jt,i}$. $\xi_{jt}$ includes the car characteristics relevant to the consumers' choice, and observed both by the consumer and the manufacturer but not econometrician. Thus the model allows for explicit observed characteristic differenciation between cars, as well as unobserved product differenciation. 
+ 
+ 
+There exists an outside option for each buyer, in each market, that provides utility $u_{0t}$ that is normalized to 0. I interpret the outside option share as the number of households in the market that did not purchase a car. The models use aggregate sales data, and assume that individual choices of purchases are not observed, thus ought to link the observed aggregate market shares to the individual level utilities. This is done by integrating over the values of the individual specific taste shocks that result into a consumer choosing product $j$ over any other product. Call the set of these values $A_{jt} = \{\epsilon_{jt,i}, s.t. u_{jt,i} \geq u_{qt,i} \forall q \ne j\}$ for each product $j$.
+ 
+
+\begin{equation}
+s_{jt} = s(\delta_{jt}, \alpha, \beta, \sigma)
+\label{eq:mktsh_2_util}
+\end{equation}
+This equation is then inverted (analytically in the logit and nested logit model, or numerically, in the full random-coefficients model), and the resulting $\delta_{jt}$ are used in the estimation.
+
+
+\subsection{Logit Model}
+The simple logit model assumes there is no heterogeneity in taste accross consumers. Thus $\delta_{jt} = x_{jt}' \beta - p_{jt} \alpha$, and $\mu_{jt,i} = \epsilon_{jt,i}$. This implies that the observed car characteristics are additively separable from the individual taste shocks. In addition, the individual taste shocks $\epsilon_{jt,i}$ are assumed to be independant accross products and individuals, and follow a Type I extreme value distribution.
+
+Under these assumptions, the market share $s_{jt}$ is a logistic closed form function of the mean utilities, and the inversion is done analytically : 
+\begin{equation}
+log(s_{jt}) = \delta_{jt} - \log(\sum\limits_{q \in J} \exp(\delta_q))
+\label{eq:logit1}
+\end{equation}
+Thus, by substracting the market share of the outside option, we obtain an estimable equation, that we estimate using both OLS and IV in section 2.
+\begin{equation}
+log(s_{jt}) - log(s_{0t}) = \delta_{jt} - \delta_{0t} = x_{jt}' \beta - p_{jt} \alpha + \xi_{jt}
+\label{eq:logit2}
+\end{equation}
+
+The  need for instrumental variables comes from the endogeneity in prices. The price of a product $j$ is likely to be set by the manufacturer simultaneously with the unobserved car characteristics, leading to simultaneity bias, the differenciated product version of the simultaneity problem common in homogeneous product demand estimation. BLP motivates the use of three sets of instruments for the price of car $jt$ : 
+\begin{enumerate}
+  \item For each product \{j,t\}, the observed car characteristics $x_{j,t}$
+  \item The sum of observed car characteristics for cars from the same brand $\sum_{q \ne j, q \in J_r} x_{q,t}$
+  \item The sum of observed car characteristics for cars from other manufacturers $\sum_{q \ne j, q \in J_r} x_{q,t}$
+\end{enumerate}
+The identification assumption is an exclusion restriction, where we require the observed characteristics used to compute the instruments to be correlated to the price, but mean independant from the unobserved characteristics $E(x_{qt} \xi_{jt}) = 0$. 
+
+This simple logit models implies unrealistic substitution patterns on the demand system: the cross and own price elasticity of any product depends exclusively on its market share. Thus two products that have the same market share will have the same cross-price elasticities with any third product, even if they had very different characteristics. However, we expect substitution between products to follow taste along other characteristics than price, for instance, if the price of a Toyota Corolla were to increase, we expect demand to shift more towards cars of similar size category than bigger cars.
+
+\subsection{Nested Logit Model}
+In order to obtain more realistic substitution patterns, one can incorporate heterogeneity in taste by nesting cars into groups $r \in R$, and allowing for correlation in the individual utility terms in  
+choices within the same group. The nested logit specification includes an extra parameter $\sigma$ to allow for correlation between unobservable taste factors between products of the same nest. The nests, or car groups, are imposed ex-ante however.
+\begin{equation}
+u_{jt,i} = \delta_{jt} + \zeta_r + (1-\sigma) \epsilon_{jt,i}
+\label{eq:nested_logit_utility}
+\end{equation}
+
+The individual taste shocks $\{\epsilon_{jt,i}\}$ are assumed to be independent (accross products in the same market, and individuals) Extreme Value Type I. $\zeta_r$ has the unique distribution (for each $\sigma$) such that $\zeta_r + (1-\sigma) \epsilon_{jt,i}$ is itself Type I Extreme Value (proof of existence and uniqueness of this distribution in Cardell 1991). Under these assumptions, the mean value function is analytically solved, and leads to the following estimable moment.
+\begin{equation}
+log(s_{jt}) - log(s_{0t}) = x_{jt}' \beta - p_{jt} \alpha + \sigma log(\bar{s}_{j/g,t}) + \xi_{jt} 
+\label{eq:nested_logit_regression}
+\end{equation}
+When $\sigma$ is close to 1, the only individual taste parameter is the one relative to the group of products, creating correlation between tastes within that group. When $\sigma$ is 0, we are back in the simple logit model.
+
+Compared to the simple logit specification, the linear regression here include an extra term as a dependant variable : $\bar{s}_{j/g,t}$ the share of car $j$'s sales as a fraction of its category $g$ total sales. This term is correlated to the intra-group unobervable term $\zeta$, thus is also endogenous, and needs to be instrumented for. I include for each product $jt$ the sum of characteristics of other products in the same category $\sum \limits_{q \in J_g, q \ne j, j \in J_g} x^k_{qt}$ as a fourth set of instruments as suggested by Berry 1994. %Rationale? 
+
+\subsection{BLP - full random coefficients model}
+The heterogeneity in the nested logit is defined ex-ante within set groups. The full random coefficients model used in BLP allows for heterogeneity between consumers along one or all taste attributes. The model is in the general form written above. In this case, we have only one taste parameter with a random coefficient : size, which simplifies the notation. 
+
+Now the market share function of the mean utilities is not a linear function, and cannot be computed in closed form easily (as it involves integrals). The inversion is done based on the contraction mapping result of Berry 1994, and the mean utilities found are used to compute a GMM objective function based on the moment conditions of the model and the instruments. Numerically, I follow the steps in the Appendix of Nevo 2001, and recreate his code in R and simplify it to have $\theta2$ of dimension 1.
+
+After solving the model for the value of $\sigma$ that minimizes the GMM objective function (thus minimizes the distance between the observed market shares and the ones predicted by the model), I compute standard errors using the inverse of the jacobian of the contraction mapping at the minimum. These standard errors do not take into account the simulation error. I also use the jacobian to compute the elasticities as given in the appendix of Nevo 2001.
+
+
+\subsection{Supply side and markups}
+In order to derive the markups over marginal cost, we assume that car manufacturers are multi-product firms in a Bertrand competition . The Nash assumption is the final primitive of the model. The profit of firm $f$ in market $t$ of size $M$ is : 
+\begin{equation}
+\Pi_{ft} = \sum\limits_{jt \in J_{ft}} (p_{jt} - mc_{jt}) M s_{jt}
+\label{eq:profits}
+\end{equation}
+The first order condition of the profit maximizing problem, and re-arranging the terms lead to an expression of thee markups for product j : 
+\begin{equation}
+markup_{jt,r} = \Delta_{jrt}^{-1} s_{jt}
+\label{eq:markup}
+\end{equation}
+where $\Delta_{jrt} = - \frac{\partial s_{rt}}{\partial p_{jt}}$ if $j \in J_r$ and 0 otherwise.

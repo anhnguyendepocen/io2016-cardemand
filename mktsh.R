@@ -3,6 +3,5 @@
   # s_{jt,i} is individual i's (drawn) probability to choose product j in market t
 
 mktsh <- function(expmval,expmu) { # in the previous function, mval argument was called expmval
-  res <- rowSums(ind_sh(expmval,expmu))/ns
-  return(res)
+  return(rowSums(ind_sh(expmval,expmu))/ns)
 }

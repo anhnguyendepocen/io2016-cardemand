@@ -1,0 +1,154 @@
+ \subsection{Logit}
+
+<<market_shares, eval=TRUE, echo=FALSE, results='asis'>>=
+market_shares <- select(cardata, year, q, nb_hh, s, s0, ls_ls0) %>% group_by(year) %>% summarize(q = mean(q), nb_hh = mean(nb_hh)/1000, s_mean = mean(s)*100, s0 = mean(s0)*100, ls_ls0 = mean(ls_ls0)) 
+strCaption <- paste0("Market Shares")
+print(xtable(market_shares, digits=3, caption=strCaption, label="tbl:market_shares"),
+      size="footnotesize", include.rownames=FALSE, include.colnames=FALSE,
+      caption.placement="top", hline.after=NULL, align= c("c", "c", "c","c",  "c", "c"),
+      add.to.row = list(pos = list(-1, nrow(market_shares)),
+                        command = c(paste("\\toprule \n",
+                                          "Year & Sales & Market size &  $s$ & $s_0$  & $log(s) - log(s_0)$ \\\\\n",
+                                          "\\midrule \n"),
+                                    "\\bottomrule \n")
+      )
+)
+@
+
+The first set of results are based on a simple logit specification for the underlying utility function. The additive separability between observable and unobservable characteristics in the utility, the independance assumption and the type I  extreme value type 1 distribution assumed on the the $\epsilon_{ijt}$ allow to analytically invert the market share function. In practice, I regression the \emph{logit} mean utility $\delta_{jt} - \delta_{0t} = log(s_{jt}) - log(s_{0t})$ on car characteristics and price, where $s_{jt}$ is the market share of car model $j$ in  market $t$. The market shares are computed as the sales to market size ratio, and the market size is the number of households (in units of 1000 in Table \ref{tbl:market_shares}) in the United States. For each year, I compute the market share of the outside option, and the corresponding mean utility $\delta_{0t}$ is normalized to 0 for every market. The average market share in the sample is very low relative to the outside option.
+
+I do the regression on two sets of car characteristics : the one used in BLP (HP/Wt, a dummy for air conditioning, miles per dollar MpD, size and a constant), and the full set (in addition to the previous set, this one includes, dummies for the number of doors, a dummy for front wheel drive DRV, a dummy for automatic transmission AT, horsepower HP, a dummy for power steering PS and a dummy for the nationality of the manufacturer Euro and Japan.)
+
+
+
+
+
+<<logit_1, eval=TRUE, echo=FALSE>>=
+logit_blp <- lm(data = cardata, formula = ls_ls0 ~ hp2wt + air + mpd + size + p_adj)
+logit_all <- lm(data = cardata, formula = ls_ls0 ~ hp2wt + air + mpd + size + p_adj + door3 + door4 + door5 + at + ps + drv + hp2wt + hp + euro + japan)
+logit_blp_firmdum <- lm(data = cardata, formula = ls_ls0 ~ hp2wt + air + mpd + size + p_adj+ 
+           firm2 + firm3 + firm4 + firm5 + firm6 + firm7 + firm8 + firm9  + firm11 + firm12 + firm14 + firm15 + firm16 + firm17 + firm18 + firm24)
+logit_all_firmdum <- lm(data = cardata, formula = ls_ls0 ~ hp2wt + air + mpd + size + p_adj + door3 + door4 + door5 + at + ps + drv + hp2wt + hp + euro + japan + 
+           firm2 + firm3 + firm4 + firm5 + firm6 + firm7 + firm8 + firm9  + firm11 + firm12 + firm14 + firm15 + firm16 + firm17 + firm18 + firm24 )
+s_logit_blp <- summary(logit_blp)
+s_logit_all <- summary(logit_all)
+s_logit_blp_firmdum <- summary(logit_blp_firmdum)
+s_logit_all_firmdum <- summary(logit_all_firmdum)
+@
+
+
+<<logit_iv1, eval=TRUE, echo=FALSE>>=
+
+logit_blp_iv12 <- ivreg(data = cardata, formula = ls_ls0 ~ hp2wt + air + mpd + size + p_adj | hp2wt + air + mpd + size +  CONSTANT_iv1 + air_iv1 + CONSTANT_iv2 + air_iv2 + mpd_iv2)
+s_logit_blp_iv12 <-summary(logit_blp_iv12, diagnostics = TRUE) # KEEP
+# Sargan J test of over idenfication is rejected, include less ivs
+logit_blp_iv00 <- ivreg(data = cardata, formula = ls_ls0 ~ hp2wt + air + mpd + size + p_adj | hp2wt + air + mpd + size +  CONSTANT_iv1 + CONSTANT_iv2)
+s_logit_blp_iv00 <-summary(logit_blp_iv00, diagnostics = TRUE)
+ # ALL GOOD
+####
+logit_all_iv12 <- ivreg(data = cardata, formula = ls_ls0 ~ hp2wt + air + mpd + size + p_adj + door3 + door4 + door5 + at + ps + drv  + hp + euro + japan | hp2wt + air + mpd + size + door3 + door4 + door5 + at + ps + drv  + hp + euro + japan + CONSTANT_iv1 + door3_iv1 + door5_iv1 + air_iv1 + drv_iv1 + CONSTANT_iv2 +  door3_iv2 + at_iv2 + air_iv2 + drv_iv2)
+s_logit_all_iv12 <- summary(logit_all_iv12, diagnostics = TRUE) # KEEP
+# not good, Wu-Hausman-Wald not rejected, do not reject the possibility that OLS and IV are identical, + Sargan rejected, extra moment conditions are not verified
+####
+logit_all_iv00 <- ivreg(data = cardata, formula = ls_ls0 ~ hp2wt + air + mpd + size + p_adj + door3 + door4 + door5 + at + ps + drv  + hp + euro + japan | hp2wt + air + mpd + size + door3 + door4 + door5 + at + ps + drv  + hp + euro + japan + CONSTANT_iv1 + CONSTANT_iv2 )
+s_logit_all_iv00 <- summary(logit_all_iv00, diagnostics = TRUE) # KEEP
+
+###
+logit_all_firmdum_iv12 <- ivreg(data = cardata, formula = ls_ls0 ~ hp2wt + air + mpd + size + p_adj + door3 + door4 + door5 + at + ps + drv  + hp + euro + japan | hp2wt + air + mpd + size + door3 + door4 + door5 + at + ps + drv  + hp + euro + japan +  mpd + CONSTANT_iv1  + CONSTANT_iv2 )
+s_logit_all_firmdum_iv12 <- summary(logit_all_firmdum_iv12, diagnostics = TRUE)
+@
+%
+
+<<delta_logit_for_full_model, eval=TRUE, echo=FALSE>>=
+# Output used in full model, predicted mean utilities from IV logit model 
+delta_logit <<- logit_all_firmdum_iv12$fitted.values
+@
+%
+
+<<logit_results_format, eval=TRUE, echo=FALSE>>=
+result.rows <-  c("CONSTANT", "",
+                  "HP/Wt", "",
+                  "A/C",  "", 
+                  "MpD",  "",
+                  "Size",  "", 
+                  "Price",  "", 
+                  "-", 
+                  "3 doors", "",
+                  "4 doors", "",
+                  "5 doors", "", 
+                  "AT", "", 
+                  "PS", "",
+                  "DRV", "",
+                  "HP", "",
+                  "Euro", "",
+                  "Japan", "",
+                  "-", 
+                  "Brand FE",
+                  "R2")
+empty.col <- rep("", length(result.rows))
+estimates.index <- c(1,3,5,7,9,11, 14, 16, 18, 20, 22, 24, 26, 28, 30)
+se.index <- estimates.index + 1
+r2.index <- 34
+brandfe.index <- 33
+logit_results <- data.frame(FORMAT = result.rows)
+#
+logit_results$OLS_blp <- empty.col
+logit_results$OLS_blp[estimates.index[1:length(logit_blp$coefficients)]] <- as.character(round(logit_blp$coefficients, digits =3))
+logit_results$OLS_blp[se.index[1:length(logit_blp$coefficients)]] <- paste0("(", round(s_logit_blp$coefficients[,2], digits=3), ")")
+logit_results$OLS_blp[r2.index] <- as.character(round(s_logit_blp$r.squared, digits=3))
+#
+logit_results$IV_blp <- empty.col
+logit_results$IV_blp[estimates.index[1:length(logit_blp_iv12$coefficients)]] <- as.character(round(logit_blp_iv12$coefficients, digits =3))
+logit_results$IV_blp[se.index[1:length(logit_blp_iv12$coefficients)]] <- paste0("(", round(s_logit_blp_iv12$coefficients[,2], digits=3), ")")
+logit_results$IV_blp[r2.index] <- c("n.a.")
+#
+logit_results$OLS_all <- empty.col
+logit_results$OLS_all[estimates.index[1:length(logit_all$coefficients)]] <- as.character(round(logit_all$coefficients, digits =3))
+logit_results$OLS_all[se.index[1:length(logit_all$coefficients)]] <- paste0("(", round(s_logit_all$coefficients[,2], digits=3), ")")
+logit_results$OLS_all[r2.index] <- as.character(round(s_logit_blp$r.squared, digits=3))
+#
+logit_results$IV_all <- empty.col
+logit_results$IV_all[estimates.index[1:length(logit_all_iv12$coefficients)]] <- as.character(round(logit_all_iv12$coefficients, digits =3))
+logit_results$IV_all[se.index[1:length(logit_all_iv12$coefficients)]] <- paste0("(", round(s_logit_all_iv12$coefficients[,2], digits=3), ")")
+logit_results$IV_all[r2.index] <- c("n.a.")
+## brand dummy results
+logit_results$OLS_d <- empty.col
+logit_results$OLS_d[estimates.index] <- as.character(round(logit_all_firmdum$coefficients[1:length(estimates.index)], digits =3))
+logit_results$OLS_d[se.index] <- paste0("(", round(s_logit_all_firmdum$coefficients[1:length(se.index),2], digits=3), ")")
+logit_results$OLS_d[brandfe.index] <- c("YES")
+logit_results$OLS_d[r2.index] <- as.character(round(s_logit_all_firmdum$r.squared, digits=3))
+#
+logit_results$IV_d <- empty.col
+logit_results$IV_d[estimates.index] <- as.character(round(logit_all_firmdum_iv12$coefficients[1:length(estimates.index)], digits =3))
+logit_results$IV_d[se.index] <- paste0("(", round(s_logit_all_firmdum_iv12$coefficients[1:length(se.index),2], digits=3), ")")
+logit_results$IV_d[brandfe.index] <- c("YES")
+logit_results$IV_d[r2.index] <- c("n.a.")
+@
+%
+
+<<logit_results_out, eval=TRUE, echo=FALSE, results='asis'>>=
+
+strCaption <- paste0("Results with Logit Demand \n (510 Observations)")
+print(xtable(logit_results, digits=3, caption=strCaption, label="tbl:logit_results"),
+      size="footnotesize", include.rownames=FALSE, include.colnames=FALSE,
+      caption.placement="top", hline.after=NULL, align= c("l", "c", "c","c",  "c", "c", "c"),
+      add.to.row = list(pos = list(-1, nrow(logit_results)),
+                        command = c(paste("\\toprule \n",
+                                          "Variable & OLS & IV & OLS & IV & OLS & IV \\\\\n",
+                                          "\\midrule \n"),
+                                    "\\bottomrule \n")
+      )
+)
+@
+%
+
+The first column of Table \ref{tbl:logit_results} gives the results of the OLS estimation closest (if not identical) to the one in BLP. I obtain parameters of the expected sign for all characteristics, and statistically significant. The price parameter is negative, as in BLP, even before instrumenting. Increasing horsepower to weight ratio, or adding air-conditioning to a car increases the utility of the buyer, unlike the BLP results. The magnitude on the price parameter is higher (in absolute value) than in BLP, which is likely to lead to more with elastic demands than what they argue in their paper (although I am not how exactly they define the number of car models with inelastic demand there!). The magnitudes of the parameters is not easily interpretable per se, as the utility is made cardinal through a normalization of the outside option utility, but the elasticities and markups are. 
+
+In the second column of Table \ref{tbl:logit_results}, I re-estimate the logit utility specification, with instruments to allow for car characteristics unobserved to the econometrician. Since I am including a constant as a car characteristic (to have mean 0 unobserved disturbances), the instruments include the number of car lines by the same manufacturer.  For the second set of instruments (characteristics of other car models by the same manufacturer), the number of models, and the sum of characteristics of MpD, 4 doors, automatic transmission, power steering, horsepower to weight ratio, and horsepower ae highly correlated (coefficient higher than 0.9, if not perfectly collinear). I keep only the number of car lines by the same manufacturer as instrument among them. I do a similar correlation analysis on the instruments of the set 3 (characteristics of car models by all other manufacturers), and keep from them the number of car models by other manufacturers, and the sum of characteristics 3 doors, automatic transmission, air conditioning and front wheel drive. The estimation is a two-stages least-squares estimation (using \begin{verbatim} ivreg \end{verbatim} from the package AER), and the standard errors are corrected.
+
+The use of instruments doubles the magnitude of the price parameter : products of higher unobserved quality have higher prices on average, and not controlling for this unobserved quality in the OLS leads to a downward bias (in absolute value) in the price parameter. This is also what BLP find when they instrument, and conclude that correcting for the endogeneity of prices matters. They also interpret their low goodness of fit of the logit OLS model as an indication of the importance of unobservable demand characteristics. However in our case, the R2 for the logit OLS is just under 50\%, 10\% higher than that of BLP.
+
+The third and fourth columns in Table \ref{tbl:logit_results} repeats similar estimations but includes all of the available car characteristics. The most remarkable change is the great decrease (in absolute value) in the magnitude of the price coefficient, although it stays significantly different than 0. Althought the price parameter using IV is higher (in absolute value) than with OLS, it is still much lower than when only the BLP attributes were included. In the BLP paper, the authors do sensitivity analyses on the included attributes and find that overall the trends in the markups are elasticities are not much different, and the values do not change dramatically. This will not be the case in my estimation as the price parameter (part of both the markup and the elasticities through $\frac{\partial \deltaˆ{-1}}{\partial p}$) is 6 times lower.
+
+
+Buying a Ford may not hold the same intrinsic value for the buyer as buying a Cadillac, even if the two cars were identical in all other aspects. If this is the case, brand fixed effects are not explicitely accounted for in the model,  my estimates will be biased because the car brand is likely to be correlated with price and car characteristics. I run additional regressions including brand dummies to control for any time-invariant brand effect.  The results are in column 5 and 6, respectively OLS and IV. Including firm dummies increases the magnitude of the estimated marginal utility of money, and even more so when price is instrumented. Brand effects seem to play an important role in the choice of buying a car as the overall goodness of fit of the model jumps to 70 \% (even the adjusted R2, not reported.)

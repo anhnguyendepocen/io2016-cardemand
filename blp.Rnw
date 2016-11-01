@@ -1,0 +1,273 @@
+\subsection{Full random coefficients model}
+
+
+<< blp_init, eval=TRUE,echo=FALSE,warning=FALSE,error=FALSE,message=FALSE,results='hide',cache = FALSE>>=
+#rm(list=setdiff(ls(), "delta_logit", "cardata"))
+
+blpdata <- cardata
+JT <- dim(blpdata)[1]
+crit <- 0.5
+ns <- 20
+sigma <- 5
+old.sigma <- sigma
+old.theta2 <- old.sigma
+mvalold <- exp(delta_logit)
+v <- rnorm(ns, 0, 1)
+x2 <- as.matrix(select(.data = blpdata, size)) # attributes with random parameter
+
+
+x1_all <- as.matrix(select(.data = blpdata, CONSTANT, hp2wt, air, mpd, size, p_adj, door3, door4, door5, at, ps, drv, hp, euro, japan)) # all attributes 
+z_all <- as.matrix(select(.data = blpdata, CONSTANT, hp2wt, air, mpd, size, p_adj, door3, door4, door5, at, ps, drv, hp, euro, japan, CONSTANT_iv1, door3_iv1, door5_iv1, air_iv1, drv_iv1, CONSTANT_iv2, CONSTANT_iv4, air_iv4, mpd_iv4))
+#
+x1_all <- as.matrix(select(.data = blpdata, CONSTANT, hp2wt, air, mpd, size, p_adj, door3, door4, door5, at, ps, drv, hp, euro, japan)) # all attributes 
+z_all1 <- as.matrix(select(.data = blpdata, CONSTANT, hp2wt, air, mpd, size, p_adj, door3, door4, door5, at, ps, drv, hp, euro, japan, CONSTANT_iv1, door3_iv1, door5_iv1, air_iv1, drv_iv1, CONSTANT_iv4, air_iv4, mpd_iv4))
+#
+x1_blp <- as.matrix(select(.data = blpdata, CONSTANT, hp2wt, air, mpd, size, p_adj)) # blp attributes
+z_blp <- as.matrix(select(.data = blpdata, CONSTANT, hp2wt, air, mpd, size, p_adj,CONSTANT_iv1,  air_iv1, CONSTANT_iv2, CONSTANT_iv4, air_iv4, mpd_iv4, size_iv4))
+#
+z_blp2 <- as.matrix(select(.data = blpdata, CONSTANT, hp2wt, air, mpd, size, p_adj, CONSTANT_iv1, CONSTANT_iv2, CONSTANT_iv4))
+z_blp2_wo2 <- as.matrix(select(.data = blpdata, CONSTANT, hp2wt, air, mpd, size, p_adj, CONSTANT_iv1, CONSTANT_iv4, air_iv4, mpd_iv4, size_iv4))
+#
+
+
+#invA <- solve(t(IV) %*% IV)
+#invA_blp <- solve(t(IV_blp) %*% IV_blp)
+
+#eigen(invA, only.values = TRUE) #invertible
+
+#shares (for meanval function)
+#prices and firmid for markup and elasticities
+s <- blpdata %>% select(s) %>% as.matrix
+p <- blpdata %>% select(p_adj) %>% as.matrix
+firmid <- blpdata %>% select(firmids) %>% as.matrix
+
+#
+yrid <- blpdata %>% select(year) %>% transmute(year = year - 1976) %>% as.matrix
+yrindex <- blpdata %>% group_by(year) %>% count(year) %>% mutate(yrindex = cumsum(n)) %>% select(yrindex) %>% as.matrix
+
+@
+
+
+<< blp_funs, eval=TRUE,echo=FALSE,warning=FALSE,error=FALSE,message=FALSE,results='hide',cache = FALSE>>=
+source(file = "mufunc.R", print.eval = TRUE, echo = TRUE)
+source(file = "ind_sh.R", print.eval = TRUE, echo = TRUE)
+source(file = "mktsh.R", print.eval = TRUE, echo = TRUE)
+source(file = "meanval.R", print.eval = TRUE, echo = TRUE)
+source(file = "gmmobj.R", print.eval = TRUE, echo = TRUE)
+source(file = "estim_blp.R", print.eval = TRUE, echo = TRUE)
+source(file = "jacob.R", print.eval = TRUE, echo = TRUE)
+source(file = "var_cov.R", print.eval = TRUE, echo = TRUE)
+@
+
+%
+<< blp_estim, eval=TRUE,echo=FALSE,warning=FALSE,error=FALSE,message=FALSE,results='hide',cache = FALSE>>=
+estim_all <- estim_blp(x1 = x1_all, x2, IV = z_all, v)
+estim_all1 <- estim_blp(x1 = x1_all, x2, IV = z_all1, v)
+# 
+# 
+# x<-seq(0,10,0.01)
+# G<-unlist(lapply(x,gmmobj_1))
+# plot(x, G, type="l")
+
+##
+estim_blp0 <- estim_blp(x1 = x1_blp, x2, IV = z_blp, v)
+estim_blp1 <- estim_blp(x1 = x1_blp, x2, IV = z_blp2, v) #not bad
+estim_blp_wo2 <- estim_blp(x1 = x1_blp, x2, IV = z_blp2_wo2, v)
+@
+%
+
+%
+<< blp_estim_format, eval=TRUE, echo=FALSE, results='hide'>>=
+result.rows <-  c("CONSTANT", "",
+                  "HP/Wt", "",
+                  "A/C", "",
+                  "MpD",  "",
+                  "Size", "",
+                  "Price", "",
+                  " - ",
+                  "3 doors", "",
+                  "4 doors", "",
+                  "5 doors", "",
+                  "AT","",
+                  "PS","",
+                  "DRV", "",
+                  "HP", "",
+                  "Euro","",
+                  "Japan","",
+                  " - ",
+                  "Size", "")
+preresult.rows <-  c("Means", "",
+                  "", "",
+                  "", "",
+                  "",  "",
+                  "", "",
+                  "", "",
+                  "", "",
+                  "", "",
+                  "",
+                  "","",
+                  "","",
+                  "","",
+                  "", "",
+                  "", "",
+                  "","",
+                  "","",
+                  "",
+                  "Std Deviations", "")
+empty.col <- rep("", length(result.rows))
+full_results <- data.frame(PRE = preresult.rows, FORMAT = result.rows)
+#
+estimates.index <- c(1,3,5, 7, 9, 11)
+estextra.index <- c(14, 16, 18, 20, 22, 24, 26, 28, 30)
+se.index <- estimates.index + 1
+seextra.index <- estextra.index + 1
+sigma.index <- c(33)
+sigmase.index <- c(34)
+#
+full_results$M1 <- empty.col
+full_results$M1[estimates.index] <- paste0(round(estim_blp0$estim[1:length(estimates.index),1], digits=3))
+full_results$M1[sigma.index] <- paste0(round(estim_blp0$estim[length(estimates.index) + 1,1], digits=3))
+full_results$M1[se.index] <- paste0("(", round(estim_blp0$estim[1:length(estimates.index),2], digits=3), ")")
+full_results$M1[sigmase.index] <- paste0("(", round(estim_blp0$estim[length(estimates.index) + 1,2], digits=3), ")")
+#
+full_results$M2 <- empty.col
+full_results$M2[estimates.index] <- paste0(round(estim_blp1$estim[1:length(estimates.index),1], digits=3))
+full_results$M2[sigma.index] <- paste0(round(estim_blp1$estim[length(estimates.index) + 1,1], digits=3))
+full_results$M2[se.index] <- paste0("(", round(estim_blp1$estim[1:length(estimates.index),2], digits=3), ")")
+full_results$M2[sigmase.index] <- paste0("(", round(estim_blp1$estim[length(estimates.index) + 1,2], digits=3), ")")
+#
+full_results$M2wo2 <- empty.col
+full_results$M2wo2[estimates.index] <- paste0(round(estim_blp_wo2$estim[1:length(estimates.index),1], digits=3))
+full_results$M2wo2[sigma.index] <- paste0(round(estim_blp_wo2$estim[length(estimates.index) + 1,1], digits=3))
+full_results$M2wo2[se.index] <- paste0("(", round(estim_blp_wo2$estim[1:length(estimates.index),2], digits=3), ")")
+full_results$M2wo2[sigmase.index] <- paste0("(", round(estim_blp_wo2$estim[length(estimates.index) + 1,2], digits=3), ")")
+#
+full_results$M1all <- empty.col
+full_results$M1all[estimates.index] <- paste0(round(estim_all$estim[1:length(estimates.index),1], digits=3))
+full_results$M1all[estextra.index] <- paste0(round(estim_all$estim[length(estimates.index) + 1 :length(estextra.index) ,1], digits=3))
+full_results$M1all[sigma.index] <- paste0(round(estim_all$estim[length(estimates.index) + length(estextra.index) + 1,1], digits=3))
+full_results$M1all[se.index] <- paste0("(", round(estim_all$estim[1:length(estimates.index),2], digits=3), ")")
+full_results$M1all[seextra.index] <- paste0("(", round(estim_all$estim[length(estimates.index) + 1 :length(estextra.index),2], digits=3), ")")
+full_results$M1all[sigmase.index] <- paste0("(", round(estim_all$estim[length(estimates.index) + length(estextra.index)+  1,2], digits=3), ")")
+#
+full_results$M2all <- empty.col
+full_results$M2all[estimates.index] <- paste0(round(estim_all1$estim[1:length(estimates.index),1], digits=3))
+full_results$M2all[estextra.index] <- paste0(round(estim_all1$estim[length(estimates.index) + 1 :length(estextra.index) ,1], digits=3))
+full_results$M2all[sigma.index] <- paste0(round(estim_all1$estim[length(estimates.index) + length(estextra.index) + 1,1], digits=3))
+full_results$M2all[se.index] <- paste0("(", round(estim_all1$estim[1:length(estimates.index),2], digits=3), ")")
+full_results$M2all[seextra.index] <- paste0("(", round(estim_all1$estim[length(estimates.index) + 1 :length(estextra.index),2], digits=3), ")")
+full_results$M2all[sigmase.index] <- paste0("(", round(estim_all1$estim[length(estimates.index) + length(estextra.index) + 1,2], digits=3), ")")
+@
+%
+
+<<blp_estim_out, eval=TRUE, echo=FALSE, results='asis'>>=
+strCaption <- paste0("Results with BLP Model \n (510 Observations)")
+print(xtable(full_results, digits=3, caption=strCaption, label="tbl:blp_results"),
+      size="footnotesize", include.rownames=FALSE, include.colnames=FALSE,
+      caption.placement="top", hline.after=NULL, align= c("l", "l", "c", "c", "c", "c", "c"),
+      add.to.row = list(pos = list(-1, nrow(full_results)),
+                        command = c(paste("\\toprule \n",
+                                          "Parameter & Variable & M1 & M2 & M3 & M4 & M5\\\\\n",
+                                          "\\midrule \n"),
+                                    "\\bottomrule \n")
+      )
+)
+@
+%
+
+Table \ref{tbl:blp_results} presents the results of a BLP model where the taste parameter on car size is a random parameter. This is a simpler version of the model estimated in BLP, where all observed characteristics are random. The results are somewhere sensitive to the choice of instruments : the first two columsn give the results of the estimation of the parsimonious model with only BLP attributes. The first column (M1) uses all the IVs from the sets 1,2, 3 and 4 (nested logit), whereas column 2 (M2) uses only the instruments of the constant terms, and column 3 (M3) excludes the set number 3 sum of characteristics of cars from other manufacturer. I suspect that the low variability of this instrument may be driving the size standard deviation estimate towards 0, and decreases substantially the precision of the estimation. This is also the case in column 4 (M4) where I use the instruments including set number 3, and include all the attributes of a car in the estimation. When I remove the instruments of set 3, as I do in column 5 (M5), I recover values for $\sigma$ that are more inline with the BLP values. The coefficient on price is high enough to match the values obtained with IV nested logit/logit. However when we include all the attributes, this estimate drops, and we are not able to easily include firm dummies in the BLP method to recover higher values. The coefficients on other BLP attributes are of the expected sign.
+
+%
+<< price_elas, eval=TRUE,echo=FALSE, results='hide',cache = FALSE>>=
+source(file = "elas.R", echo = TRUE)
+s <- blpdata %>% select(s) %>% as.matrix
+p <- blpdata %>% select(p_adj) %>% as.matrix
+# 
+elast_blp0<- semi_elas(theta2 = estim_blp0$opt, x1 = x1_blp, x2, IV = z_blp, v, p, s, attr_coef = estim_blp0$estim[6,1])
+elast_blp1<- semi_elas(theta2 = estim_blp1$opt, x1 = x1_blp, x2, IV = z_blp2, v, p, s, attr_coef = estim_blp1$estim[6,1])
+
+ elast_all<- semi_elas(theta2 = estim_all$opt, x1 = x1_all, x2, IV = z_all, v, p, s, attr_coef = estim_all$estim[6,1])
+ elast_all1<- semi_elas(theta2 = estim_all1$opt, x1 = x1_all, x2, IV = z_all1, v, p, s, estim_all1$estim[6,1])
+# 
+
+blpcarindex <- mutate(cardata, index = row_number()) %>%  filter(id %in% carmodels$id) %>% select(index)
+blpcarindex <- blpcarindex$index
+blpcarnames <- c("TY Corolla", "FD Escort", "CV Chevy", "HD Accord", "BCK Century", "LC TownCar", "CD Seville", "BMW733i")
+@
+%
+<< price_elas_blp, eval=TRUE, echo=FALSE ,results='asis'>>=
+elast_blp1 <- as.data.frame(elast_blp1[blpcarindex, blpcarindex], ncol = 8, nrow = 8)
+elast_blp1 <- cbind(blpcarnames, elast_blp1)
+strCaption <- paste0("Prices elasticities -  random coefs model - BLP attributes model \n (510 Observations) \n  -- Note : Each cell entry (i, j) gives the percentage change in market share of car model i (row) , with a 1000 USD change in the price of car j (column)")
+print(xtable(elast_blp1, digits = 3, caption=strCaption, label="tbl:blp1_elasticities"),
+      size="footnotesize", include.rownames=FALSE, include.colnames=FALSE,
+      caption.placement="top", hline.after=NULL, align= c("c", "c", "c", "c", "c", "c", "c", "c", "c"),
+      add.to.row = list(pos = list(-1, nrow(elast_blp1)),
+                        command = c(paste("\\toprule \n",
+                                          "CAR & TY Corolla & FD Escort & CV Chevy & HD Accord &  BCK Century & LN TownCar & CD Seville & BMW733i \\\\\n",
+                                          "\\midrule \n"),
+                                    "\\bottomrule \n")
+      )
+)
+@
+%
+<< price_elas_all, eval=TRUE, echo=FALSE ,results='asis'>>=
+elast_all <- as.data.frame(elast_all[blpcarindex, blpcarindex], ncol = 8, nrow = 8)
+elast_all <- cbind(blpcarnames, elast_all)
+strCaption <- paste0("Prices elasticities - random coefs model - All attributes model \n (510 Observations)")
+print(xtable(elast_all, digits=3, caption=strCaption, label="tbl:all_elasticities"),
+      size="footnotesize", include.rownames=FALSE, include.colnames=FALSE,
+      caption.placement="top", hline.after=NULL, align= c("c", "c", "c", "c", "c", "c", "c", "c", "c"),
+      add.to.row = list(pos = list(-1, nrow(elast_all)),
+                        command = c(paste("\\toprule \n",
+                                          "CAR & TY Corolla & FD Escort & CV Chevy & HD Accord &  BCK Century & LN TownCar & CD Seville & BMW733i \\\\\n",
+                                          "\\midrule \n"),
+                                    "\\bottomrule \n")
+      )
+)
+@
+%
+<< price_elas_all1, eval=TRUE, echo=FALSE ,results='asis'>>=
+elast_all1 <- as.data.frame(elast_all1[blpcarindex, blpcarindex], ncol = 8, nrow = 8)
+elast_all1 <- cbind(blpcarnames, elast_all1)
+strCaption <- paste0("Prices semi-elasticities -  random coefs model - All attributes model \n (510 Observations)")
+print(xtable(elast_all1, digits=3, caption=strCaption, label="tbl:all1_elasticities"),
+      size="footnotesize", include.rownames=FALSE, include.colnames=FALSE,
+      caption.placement="top", hline.after=NULL, align= c("c", "c", "c", "c", "c", "c", "c", "c", "c"),
+      add.to.row = list(pos = list(-1, nrow(elast_all1)),
+                        command = c(paste("\\toprule \n",
+                                          "CAR & TY Corolla & FD Escort & CV Chevy & HD Accord &  BCK Century & LN TownCar & CD Seville & BMW733i \\\\\n",
+                                          "\\midrule \n"),
+                                    "\\bottomrule \n")
+      )
+)
+@
+%
+Instead of interpreting the magnitudes of the direct estimates in the utility function, Table \ref{blp1_elasticities} presents a sample of  own and cross price semi-elasticities, using the model specification that is most comparable with the one of BLP (BLP variables, instruments M2). Each semi-elasticity gives the percentage change in market share of the row car associated with a 1000 USD increase in the price of the column car model, in 1981. An increase of 1000 USD in the price of a Ford Escort decreases by more than 120 \% its market share, and increases the market shares of the competitors by 0.3\%. My estimates for price semi-elasticities are in the same range as those found in BLP, however they do not vary as much between car models. The standard deviation of the (random) taste parameter on should affect the elasticity, since it is the maximum utility that affects the choice of one car instead of the mean utility. The increase in price of the Ford Escort is expected to have disproportionate substitution effect on cars with similar compact size, relative to ones that are larger. However, this effect is not as clear in my estimates as it is in the BLP results. It is possible that this is due to having only one random coefficient in my model, whereas BLP estimated a model where all coefficients were random except the one of price. To further study the effect of larger standard deviation of taste parameters, I report the price semi-elasticities for the same sample of car models, using the specifications of model M4 (Table \ref{tbl:all_elasticities}) and M5 (Table \ref{tbl:all1_elasticities}). As indicated above, M4 drives down the estimated value of the standard deviation on the size parameter to practically 0 (nearly equivalent to an IV estimation in a logit model), whereas M5 (excluding the instruments of set 3) gives a standard deviation of 1. As expected, Table \ref{tbl:all_elasticities} shows that the unrealistic substitution pattern of a logit model, but increasing the standard deviation of the taste parameter on size leads to richer substition patterns in Table \ref{tbl:all1_elasticities}.
+
+%
+<< blp_markups, eval=TRUE,echo=FALSE,warning=FALSE,error=FALSE,message=FALSE,results='hide',cache = FALSE>>=
+source(file = "markup.R", echo = TRUE)
+mk_blp1 <- markups(theta2 = estim_blp1$opt, x1 = x1_blp, x2 = x2, IV = z_blp2, v = v, firmid, s)
+mk_blp1_results <- mutate(cardata, price = p, mkovermc = mk_blp1[,1]*1000, variableprofits = q*mk_blp1[,1]) %>% filter(id %in% carmodels$id) %>% select(name, price, mkovermc, variableprofits) %>% arrange(price)
+@
+%
+
+<< blp_markups_out, eval=TRUE, echo=FALSE ,results='asis'>>=
+mk_blp1_results$name <- c("Ford Escort", "Chevrolet Chevy", "Toyota Corolla", "Honda Accord", "BK Century", "LN TownCar",   "CD Sevilla", "BMW 733I")
+
+strCaption <- paste0("Markups -  random coefs model - BLP attributes model \n (510 Observations)")
+print(xtable(mk_blp1_results, digits=3, caption=strCaption, label="tbl:blp1_markups"),
+      size="footnotesize", include.rownames=FALSE, include.colnames=FALSE,
+      caption.placement="top", hline.after=NULL, align= c("l", "c", "c", "c"),
+      add.to.row = list(pos = list(-1, nrow(mk_blp1_results)),
+                        command = c(paste("\\toprule \n",
+                                          "CAR & Price (in USD) & Markup over mc (p - mc) in USD & Variable profits q*(p - mc) in USD \\\\\n",
+                                          "\\midrule \n"),
+                                    "\\bottomrule \n")
+      )
+)
+@
+%
+
+Table \ref{tbl:blp1_markups} presents the implicit markup over marginal cost under the assumption of Bertrand competition between multi-products firm. The values obtained do not match those of BLP, and cannot be valid, as they indicate markups that are higher than prices, thus negative marginal costs. This is at odds with profit maximizing behaviour.

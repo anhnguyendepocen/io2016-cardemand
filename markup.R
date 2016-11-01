@@ -1,7 +1,7 @@
 # MARKUPS
 # 
 # #for testing
-# sigma <- 0.005
+# theta2 <- 0.005
 # # yrid
 # # yrindex
 # # x2 <- size
@@ -11,20 +11,22 @@
 # firmid <- df %>% select(firmids) %>% as.matrix
 
 
-#tt <- markups(x1, x2, IV, sigma, firmid, s)
+#tt <- markups(x1, x2, IV, theta2, firmid, s)
 
 #p - tt
 
-markups <- function(x1, x2, z, sigma, firmid, s){
-  delta <- meanval(sigma)
-  mval <- exp(delta)
+markups <- function(theta2, x1, x2, IV, v, firmid, s){
+  invA <- solve(t(IV) %*% IV)
   
-  expmu <- exp(mufunc(x2, sigma))
+  delta <- meanval(theta2, x1, x2, IV, v)
+  mval <- exp(delta)
+  x2 <- x2
+  expmu <- exp(mufunc(theta2, x1, x2, IV, v))
   shares <- ind_sh(mval, expmu)
   rm(expmu)
   
-   temp1 <- t(x1) %*% z
-   temp2 <- t(delta) %*% z
+   temp1 <- t(x1) %*% IV
+   temp2 <- t(delta) %*% IV
    W <- temp1%*%invA%*%t(temp1)
    B <- temp1%*%invA%*%t(temp2)
    theta1 <- solve(W,B)

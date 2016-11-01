@@ -1,128 +1,58 @@
 \documentclass{article}
 
+\usepackage{booktabs}
+\usepackage{fullpage}
+\usepackage{caption}
+
+\title{Random coefficient car demand models}
+\author{Rossi ABI-RAFEH}
+
 \begin{document}
+\maketitle
 
-<< blp_init, eval=TRUE,echo=FALSE,warning=FALSE,error=FALSE,message=FALSE,results='hide',cache = FALSE>>=
+I try to replicate the results of Berry, Levinshon and Pakes paper on car demand estimation, using a subsample of their data (years from 1977 until 1981). Instead of estimating an aggregate system of demand equations where each car model's market share depends on all the product prices, the authors reduce the number of estimated parameters (dimensionality problem) by positing an individual utility function, linear in car characteristics and car price, then aggregate over consumers to obtain moments that can be matched to the data. In the estimations, some car characteristics are assumed to beobserved by both manufacturers and consumers, but not the econometrician, and enter into the decision of the buyer. However, these unobserved demand attributes are likely to be correlated with the price of the car, resulting in the usual simultaneity bias. The solution that BLP propose is to instrument the car price with other cars' characteristics. When allowing for heterogeneity in taste accross consumers, the instruments enter the aggregate moment conditions in a non-linear way, a problem that BLP solve by using a contraction mapping to solve for the inverse function of the market shares, and then non-linear GMM for the parameter estimation. I assume all along the replication that car buyers are price takers. 
+
+Section 1 presents the three models that I use, as well as the estimation procedure of the full model allowing for taste heterogeneity, and the instruments used for each model. Section 2 presents the data and the results, and compares them to the results of BLP.
+%
+<< global_init, eval=TRUE,echo=FALSE,warning=FALSE,error=FALSE,message=FALSE,results='hide',cache = FALSE>>=
 options(digits=3)
-
 rm(list = ls())
 seed <- 31000
 set.seed(seed)
 source(file = "init.R")
 source(file = "data_clean.R")
-source(file = "instruments.R")
-
-df <- arrange(data, year, firmids, id)
-#df <- mutate(data, p_adj = p_adj)
-IV.df <- select(.data = df, dpm, door3, door4, door5, at, ps, air, drv, wt, hp2wt, hp, euro, japan,  wb, size,
-               #dpm_iv1, door3_iv1, door4_iv1, door5_iv1, at_iv1, ps_iv1, air_iv1, drv_iv1, wt_iv1, hp2wt_iv1, hp_iv1, wb_iv1, size_iv1, euro_iv1, japan_iv1,
-               #hp2wt_iv3, hp_iv3)
-               dpm_iv2, door3_iv2, door4_iv2, door5_iv2, at_iv2, ps_iv2, air_iv2, drv_iv2, wt_iv2, hp2wt_iv2, hp_iv2, euro_iv2, japan_iv2, wb_iv2, size_iv2)
-
-  #dpm_iv3, wb_iv3, size_iv3, door3_iv3, door4_iv3, door5_iv3, at_iv3, ps_iv3, air_iv3, drv_iv3, wt_iv3, hp2wt_iv3, hp_iv3, euro_iv3, japan_iv3
-
-IV <- as.matrix(IV.df)
-#Z <- cbind(rep(1,501), Z)
-invA <- solve(t(IV) %*% IV)
-eigen(invA, only.values = TRUE)
-
-x1 <- as.matrix(dplyr::select(.data = df, dpm, door3, door4, door5, at, ps, air, drv, wt, hp2wt, hp, euro, japan,  wb, size, p_adj)) #dims 501 16
-x1 <- cbind(CONSTANT = 1, x1)
-size <- as.matrix(dplyr::select(.data = df, size)) #dims 501 1
-delta.logit <- as.matrix(dplyr::select(.data = df, ls_ls0)) #dims 501 1
-
-y.MS.vec <- as.matrix(dplyr::select(.data = df, s))
-Yr <- as.matrix(dplyr::select(.data = df, year1977, year1978, year1979, year1980, year1981))
-
-yrid <- df %>% select(year) %>% transmute(year = year - 1976) %>% as.matrix
-yrindex <- df %>% group_by(year) %>% count(year) %>% mutate(yrindex = cumsum(nn)) %>% select(yrindex) %>% as.matrix
-
-crit <- 0.5
-ns <- 20
-sigma <- 1
-old.sigma <- 0
-v <- rnorm(ns, 0, 1)
-
-JT <- 501
-
-
-#size<-as.numeric(paste(carpanel$size))
-expmval<-exp(delta.logit)
-delta.est <- read.csv(file = "sarah-code/torossi.csv")$x
-
-#mvalold<-exp(rnorm(n = length(delta.logit), mean = mean(delta.logit), sd = sd(delta.logit)))
-mvalold <- exp(delta.est)
-@
-
-
-<< blp_funs, eval=TRUE,echo=FALSE,warning=FALSE,error=FALSE,message=FALSE,results='hide',cache = FALSE>>=
-source(file = "mufunc.R", print.eval = TRUE, echo = TRUE)
-source(file = "ind_sh.R", print.eval = TRUE, echo = TRUE)
-source(file = "mktsh.R", print.eval = TRUE, echo = TRUE)
-source(file = "meanval.R", print.eval = TRUE, echo = TRUE)
-source(file = "gmmobj.R", print.eval = TRUE, echo = TRUE)
-source(file = "jacob.R", print.eval = TRUE, echo = TRUE)
-source(file = "var_cov.R", print.eval = TRUE, echo = TRUE)
-@
-
-%
-<< blp_estim, eval=TRUE,echo=FALSE,warning=FALSE,error=FALSE,message=FALSE,results='hide',cache = FALSE>>=
-
-x<-seq(0,10,0.01)
-G<-unlist(lapply(x,gmmobj))
-plot(x, G,type='l')
-
-opt<-optimize(gmmobj, lower = 0, upper = 10)
-opt$minimum
-
-
-delta.blp <- meanval(opt$minimum)
-hist(delta.blp)
-temp1 <- t(x1) %*% IV
-temp2 <- t(delta.blp) %*% IV
-W <- temp1 %*% invA %*% t(temp1)
-B <- temp1 %*% invA %*% t(temp2)
-theta1 <- solve(W,B)
-theta1
-
-vcov <- var_cov(opt$minimum)
-se <-  sqrt(diag(vcov))
-se <- se[-length(se)]
-t <- theta1/se
-ttests_pvalue <- 2*pnorm(t)
-
-summary <- cbind(theta1, se, t, ttests_pvalue)
-colnames(summary) <- c("estimate", "se", "t", "p-value") 
-print(summary)
+source(file = "data_instr.R")
 @
 %
 
-%
-<< price_elas, eval=TRUE,echo=FALSE,warning=FALSE,error=FALSE,message=FALSE,results='hide',cache = FALSE>>=
-source(file = "elas.R", echo = TRUE)
-p <- df %>% select(p_adj) %>% as.matrix
-s <- df %>% select(s) %>% as.matrix
-
-elasticities <- elas(x1, x2 = size, IV, opt$minimum, p, s)
-
-elasticities[1:5, 1:5]
-head(diag(elasticities))
+<<section-models, child='models.Rnw'>>=
 @
 %
 
-%
-<< blp_markups, eval=TRUE,echo=FALSE,warning=FALSE,error=FALSE,message=FALSE,results='hide',cache = FALSE>>=
-source(file = "markup.R", echo = TRUE)
-s <- df %>% select(s) %>% as.matrix
-firmid <- df %>% select(firmids) %>% as.matrix
 
-
-markups <- markups(x1, size, IV, opt$minimum, firmid, s)
-
-
-head(markups)
-head(p - markups)
+<<section-data, child='data.Rnw'>>=
 @
 %
 
+<< logit_instruments, eval=TRUE,echo=FALSE,warning=FALSE,error=FALSE,message=FALSE,results='hide',cache = FALSE>>=
+
+# source(file = "check_instr1.R")
+### TAKE AWAY FROM check_instr1.R:  Instrumental variables to keep from set 2 and 3 : CONSTANT_iv1, door3_iv1, door5_iv1, air_iv1, drv_iv1, euro_iv1, japan_iv1, CONSTANT_iv2, door3_iv2, at_iv2, air_iv2, drv_iv2,  euro_iv2, japan_iv2
+### AND DROP : -dpm_iv1, -door4_iv1, -at_iv1, -ps_iv1, -wt_iv1, -hp2wt_iv1, -hp_iv1, -wb_iv1, -size_iv1, -dpm_iv2, -wt_iv2, -hp_iv2, -wb_iv2, -hp2wt_iv2, -size_iv2, -ps_iv2, -door5_iv2, -door4_iv2
+#cardata <- cardata %>% select(-dpm_iv1, -door4_iv1, -at_iv1, -ps_iv1, -wt_iv1, -hp2wt_iv1, -hp_iv1, -wb_iv1, -size_iv1, -dpm_iv2, -wt_iv2, -hp_iv2, -wb_iv2, -hp2wt_iv2, -size_iv2, -ps_iv2, -door5_iv2, -door4_iv2, -euro_iv2, -japan_iv2)
+@
+%
+
+<<section-logit, child='logit.Rnw'>>=
+@
+%
+
+<<section-nested-logit, child='nested_logit.Rnw'>>=
+@
+%
+
+
+<<section-blp, child="blp.Rnw">>= 
+@
+%
 \end{document}

@@ -1,0 +1,232 @@
+\subsection{Nested Logit}
+<<nests, eval=FALSE, echo = FALSE>>=
+cardata %>% group_by(year, cat) %>% summarize(sum(s))
+@
+%
+<<nests_fig, eval=TRUE, echo = FALSE, dev='png', fig.lp="fig:nests", fig.cap = 'Market shares of car categories', fig.pos="t">>=
+m <- ggplot(cardata %>% group_by(year, cat) %>% summarize(cat_s = sum(s)), aes(x = year, y = cat_s)) + geom_bar(aes(fill = cat), stat = "identity")
+m
+@
+%
+
+The nests/groups I use are the car categories : Compact, Midsize and Large. The market share of compact cars is stable over the sample period, but Figure \ref{fig:nests} shows the market share of large cars in 1981 is less than half what it was in 1977. The drop in the total car market share relative to the outside option (the number of people not buying new cars in the US) during the sample period is mostly traced back to the drop in sales of large cars. The market share of midsize cars increased (tripled!) during the period, as well as the number of new midsize models on the market. 
+
+
+<<nested_logit_reg, eval=TRUE, echo = FALSE>>=
+nlogit_blp <- lm(data = cardata, formula = ls_ls0 ~ hp2wt + air + mpd + size + p_adj + log(s_cat))
+nlogit_all <- lm(data = cardata, formula = ls_ls0 ~ hp2wt + air + mpd + size + p_adj + door3 + door4 + door5 + at + ps + drv + hp + euro + japan + log(s_cat))
+nlogit_blp_firmdum <- lm(data = cardata, formula = ls_ls0 ~ hp2wt + air + mpd + size + p_adj + log(s_cat) + 
+           firm2 + firm3 + firm4 + firm5 + firm6 + firm7 + firm8 + firm9  + firm11 + firm12 + firm14 + firm15 + firm16 + firm17 + firm18 + firm24)
+nlogit_all_firmdum <- lm(data = cardata, formula = ls_ls0 ~ hp2wt + air + mpd + size + p_adj + door3 + door4 + door5 + at + ps + drv + hp + euro + japan + log(s_cat) +
+           firm2 + firm3 + firm4 + firm5 + firm6 + firm7 + firm8 + firm9  + firm11 + firm12 + firm14 + firm15 + firm16 + firm17 + firm18 + firm24 )
+s_nlogit_blp <- summary(nlogit_blp)
+s_nlogit_all <- summary(nlogit_all)
+s_nlogit_blp_firmdum <- summary(nlogit_blp_firmdum)
+s_nlogit_all_firmdum <- summary(nlogit_all_firmdum)
+@
+%
+<<nlogit_iv1, eval=TRUE, echo=FALSE>>=
+nlogit_blp_iv12 <- ivreg(data = cardata, formula = ls_ls0 ~ hp2wt + air + mpd + size + p_adj + log(s_cat) | hp2wt + air + mpd + size +  CONSTANT_iv1 + CONSTANT_iv2 + air_iv2 + mpd_iv2 + CONSTANT_iv4 + air_iv4 + mpd_iv4 + size_iv4)
+#
+s_nlogit_blp_iv12 <-summary(nlogit_blp_iv12, diagnostics = TRUE) # KEEP
+####
+nlogit_all_iv12 <- ivreg(data = cardata, formula = ls_ls0 ~ hp2wt + air + mpd + size + p_adj + door3 + door4 + door5 + at + ps + drv  + hp + euro + japan  + log(s_cat) | hp2wt + air + mpd + size + door3 + door4 + door5 + at + ps + drv  + hp + euro + japan + CONSTANT_iv1 + air_iv1 +  door3_iv1 + door5_iv1 + drv_iv1 + euro_iv1 + japan_iv1 + CONSTANT_iv2 +  air_iv2 +  mpd_iv2 + door3_iv2 +  at_iv2 + drv_iv2 + CONSTANT_iv4 + air_iv4 + mpd_iv4 + size_iv4 + euro_iv4 + japan_iv4)
+#
+s_nlogit_all_iv12 <- summary(nlogit_all_iv12, diagnostics = TRUE) # KEEP
+## Sargan J test is rejected, search for less, and better instruments
+nlogit_blp_iv00 <- ivreg(data = cardata, formula = ls_ls0 ~ hp2wt + air + mpd + size + p_adj + log(s_cat) | hp2wt + air + mpd + size +  CONSTANT_iv1 + CONSTANT_iv2 + CONSTANT_iv4)
+s_nlogit_blp_iv00 <-summary(nlogit_blp_iv00, diagnostics = TRUE) # GOOD!
+##
+nlogit_blp_iv01 <- ivreg(data = cardata, formula = ls_ls0 ~ hp2wt + air + mpd + size + p_adj + log(s_cat) | hp2wt + air + mpd + size +  CONSTANT_iv1 + CONSTANT_iv2 + CONSTANT_iv4 + air_iv4 + mpd_iv4 + size_iv4)
+s_nlogit_blp_iv01 <-summary(nlogit_blp_iv01, diagnostics = TRUE) # GOOD!
+## Sargan test not rejected at a risk level of 74%
+
+####
+nlogit_all_iv00 <- ivreg(data = cardata, formula = ls_ls0 ~ hp2wt + air + mpd + size + p_adj + door3 + door4 + door5 + at + ps + drv  + hp + euro + japan  + log(s_cat) | hp2wt + air + mpd + size + door3 + door4 + door5 + at + ps + drv  + hp + euro + japan + CONSTANT_iv1 + CONSTANT_iv2 + CONSTANT_iv4 + air_iv4 + mpd_iv4 + size_iv4)
+#
+s_nlogit_all_iv00 <- summary(nlogit_all_iv00, diagnostics = TRUE) 
+
+###=
+nlogit_all_firmdum_iv12 <- ivreg(data = cardata, formula = ls_ls0 ~ hp2wt + air + mpd + size + p_adj  + door3 + door4 + door5 + at + ps + drv  + hp + euro + japan + log(s_cat) +
+            firm2 + firm3 + firm4 + firm5 + firm6 + firm7 + firm8 + firm9  + firm11 + firm12 + firm14 + firm15 + firm16 + firm17 + firm18 + firm24 | hp2wt + air + mpd + size + door3 + door4 + door5 + at + ps + drv  + hp + euro + japan + 
+           firm2 + firm3 + firm4 + firm5 + firm6 + firm7 + firm8 + firm9  + firm11 + firm12 + firm14 + firm15 + firm16 + firm17 + firm18 + firm24 + 
+             CONSTANT_iv1 + CONSTANT_iv2 + CONSTANT_iv4 + air_iv4 + mpd_iv4 + size_iv4)
+#
+s_nlogit_all_firmdum_iv12 <- summary(nlogit_all_firmdum_iv12, diagnostics = TRUE)
+@
+%
+<<nested_logit_results_format, eval=TRUE, echo=FALSE>>=
+result.rows <-  c("CONSTANT", "",
+                  "HP/Wt", "",
+                  "A/C",  "", 
+                  "MpD",  "",
+                  "Size",  "", 
+                  "Price",  "", 
+                  "-", 
+                  "3 doors", "",
+                  "4 doors", "",
+                  "5 doors", "", 
+                  "AT", "", 
+                  "PS", "",
+                  "DRV", "",
+                  "HP", "",
+                  "Euro", "",
+                  "Japan", "",
+                  "-", 
+                  "sigma", "",
+                  "-",
+                  "Brand FE",
+                  "R2",
+                  " DIAGNOSTICS ",
+                  "Weak IV - Price",
+                  "p-value",
+                  "Weak IV - sigma",
+                  "p-value",
+                  "Sargan J",
+                  "p-value")
+empty.col <- rep("", length(result.rows))
+estimates.index <- c(1,3,5,7,9,11)
+estextra.index <-  c(14, 16, 18, 20, 22, 24, 26, 28, 30)
+se.index <- estimates.index + 1
+seextra.index <- estextra.index + 1
+sigma.index <- 33
+sigmase.index <- 34
+r2.index <- 37
+brandfe.index <- 36
+wp.index <- 39
+wpp.index <- 40
+wsigma.index <- 41
+wsigmap.index <- 42
+sargan.index <- 43
+sarganp.index <- 44
+nlogit_results <- data.frame(FORMAT = result.rows)
+#
+#
+nlogit_results$OLS_blp <- empty.col
+nlogit_results$OLS_blp[estimates.index] <- paste0(round(s_nlogit_blp$coefficients[1:length(estimates.index),1], digits=3))
+nlogit_results$OLS_blp[sigma.index] <- paste0(round(s_nlogit_blp$coefficients[length(estimates.index) + 1,1], digits=3))
+nlogit_results$OLS_blp[se.index] <- paste0("(", round(s_nlogit_blp$coefficients[1:length(estimates.index),2], digits=3), ")")
+nlogit_results$OLS_blp[sigmase.index] <- paste0("(", round(s_nlogit_blp$coefficients[length(estimates.index) + 1,2], digits=3), ")")
+nlogit_results$OLS_blp[r2.index] <- as.character(round(s_nlogit_blp$r.squared, digits=3))
+#
+nlogit_results$IV_blp <- empty.col
+nlogit_results$IV_blp[estimates.index] <- paste0(round(s_nlogit_blp_iv12$coefficients[1:length(estimates.index),1], digits=3))
+nlogit_results$IV_blp[sigma.index] <- paste0(round(s_nlogit_blp_iv12$coefficients[length(estimates.index) + 1,1], digits=3))
+nlogit_results$IV_blp[se.index] <- paste0("(", round(s_nlogit_blp_iv12$coefficients[1:length(estimates.index),2], digits=3), ")")
+nlogit_results$IV_blp[sigmase.index] <- paste0("(", round(s_nlogit_blp_iv12$coefficients[length(estimates.index) + 1,2], digits=3), ")")
+nlogit_results$IV_blp[r2.index] <- c("n.a.")
+nlogit_results$IV_blp[wp.index] <- paste0(round(s_nlogit_blp_iv12$diagnostics[1,3], digits=3))
+nlogit_results$IV_blp[wpp.index] <- paste0(round(s_nlogit_blp_iv12$diagnostics[1,4], digits=3))
+nlogit_results$IV_blp[wsigma.index] <- paste0(round(s_nlogit_blp_iv12$diagnostics[2,3], digits=3))
+nlogit_results$IV_blp[wsigmap.index] <- paste0(round(s_nlogit_blp_iv12$diagnostics[2,4], digits=3))
+nlogit_results$IV_blp[sargan.index] <- paste0(round(s_nlogit_blp_iv12$diagnostics[4,3], digits=3))
+nlogit_results$IV_blp[sarganp.index] <- paste0(round(s_nlogit_blp_iv12$diagnostics[4,4], digits=3))
+#
+nlogit_results$IV_blp0 <- empty.col
+nlogit_results$IV_blp0[estimates.index] <- paste0(round(s_nlogit_blp_iv01$coefficients[1:length(estimates.index),1], digits=3))
+nlogit_results$IV_blp0[sigma.index] <- paste0(round(s_nlogit_blp_iv01$coefficients[length(estimates.index) + 1,1], digits=3))
+nlogit_results$IV_blp0[se.index] <- paste0("(", round(s_nlogit_blp_iv01$coefficients[1:length(estimates.index),2], digits=3), ")")
+nlogit_results$IV_blp0[sigmase.index] <- paste0("(", round(s_nlogit_blp_iv01$coefficients[length(estimates.index) + 1,2], digits=3), ")")
+nlogit_results$IV_blp0[r2.index] <- c("n.a.")
+
+nlogit_results$IV_blp0[wp.index] <- paste0(round(s_nlogit_blp_iv01$diagnostics[1,3], digits=3))
+nlogit_results$IV_blp0[wpp.index] <- paste0(round(s_nlogit_blp_iv01$diagnostics[1,4], digits=3))
+nlogit_results$IV_blp0[wsigma.index] <- paste0(round(s_nlogit_blp_iv01$diagnostics[2,3], digits=3))
+nlogit_results$IV_blp0[wsigmap.index] <- paste0(round(s_nlogit_blp_iv01$diagnostics[2,4], digits=3))
+nlogit_results$IV_blp0[sargan.index] <- paste0(round(s_nlogit_blp_iv01$diagnostics[4,3], digits=3))
+nlogit_results$IV_blp0[sarganp.index] <- paste0(round(s_nlogit_blp_iv01$diagnostics[4,4], digits=3))
+#
+nlogit_results$OLS_all <- empty.col
+nlogit_results$OLS_all[estimates.index] <- paste0(round(s_nlogit_all$coefficients[1:length(estimates.index),1], digits=3))
+nlogit_results$OLS_all[estextra.index] <- paste0(round(s_nlogit_all$coefficients[length(estimates.index) + 1 :length(estextra.index) ,1], digits=3))
+nlogit_results$OLS_all[sigma.index] <- paste0(round(s_nlogit_all$coefficients[length(estextra.index)  + 1,1], digits=3))
+nlogit_results$OLS_all[se.index] <- paste0("(", round(s_nlogit_all$coefficients[1:length(estimates.index),2], digits=3), ")")
+nlogit_results$OLS_all[seextra.index] <- paste0("(", round(s_nlogit_all$coefficients[length(estimates.index) + 1 :length(estextra.index), 2], digits=3), ")")
+nlogit_results$OLS_all[sigmase.index] <- paste0("(", round(s_nlogit_all$coefficients[length(estextra.index) + 1,2], digits=3), ")")
+nlogit_results$OLS_all[r2.index] <- as.character(round(s_nlogit_all$r.squared, digits=3))
+#
+
+nlogit_results$IV_all <- empty.col
+nlogit_results$IV_all[estimates.index] <- paste0(round(s_nlogit_all_iv12$coefficients[1:length(estimates.index),1], digits=3))
+nlogit_results$IV_all[estextra.index] <- paste0(round(s_nlogit_all_iv12$coefficients[length(estimates.index) + 1 :length(estextra.index) ,1], digits=3))
+nlogit_results$IV_all[sigma.index] <- paste0(round(s_nlogit_all_iv12$coefficients[length(estextra.index)  + 1,1], digits=3))
+nlogit_results$IV_all[se.index] <- paste0("(", round(s_nlogit_all_iv12$coefficients[1:length(estimates.index),2], digits=3), ")")
+nlogit_results$IV_all[seextra.index] <- paste0("(", round(s_nlogit_all_iv12$coefficients[length(estimates.index) + 1 :length(estextra.index), 2], digits=3), ")")
+nlogit_results$IV_all[sigmase.index] <- paste0("(", round(s_nlogit_all_iv12$coefficients[length(estextra.index) + 1,2], digits=3), ")")
+nlogit_results$IV_all[r2.index] <- c("n.a.")
+
+nlogit_results$IV_all[wp.index] <- paste0(round(s_nlogit_all_iv12$diagnostics[1,3], digits=3))
+nlogit_results$IV_all[wpp.index] <- paste0(round(s_nlogit_all_iv12$diagnostics[1,4], digits=3))
+nlogit_results$IV_all[wsigma.index] <- paste0(round(s_nlogit_all_iv12$diagnostics[2,3], digits=3))
+nlogit_results$IV_all[wsigmap.index] <- paste0(round(s_nlogit_all_iv12$diagnostics[2,4], digits=3))
+nlogit_results$IV_all[sargan.index] <- paste0(round(s_nlogit_all_iv12$diagnostics[4,3], digits=3))
+nlogit_results$IV_all[sarganp.index] <- paste0(round(s_nlogit_all_iv12$diagnostics[4,4], digits=3))
+
+#
+nlogit_results$IV_all0 <- empty.col
+nlogit_results$IV_all0[estimates.index] <- paste0(round(s_nlogit_all_iv00$coefficients[1:length(estimates.index),1], digits=3))
+nlogit_results$IV_all0[estextra.index] <- paste0(round(s_nlogit_all_iv00$coefficients[length(estimates.index) + 1 :length(estextra.index) ,1], digits=3))
+nlogit_results$IV_all0[sigma.index] <- paste0(round(s_nlogit_all_iv00$coefficients[length(estextra.index)  + 1,1], digits=3))
+nlogit_results$IV_all0[se.index] <- paste0("(", round(s_nlogit_all_iv00$coefficients[1:length(estimates.index),2], digits=3), ")")
+nlogit_results$IV_all0[seextra.index] <- paste0("(", round(s_nlogit_all_iv00$coefficients[length(estimates.index) + 1 :length(estextra.index), 2], digits=3), ")")
+nlogit_results$IV_all0[sigmase.index] <- paste0("(", round(s_nlogit_all_iv00$coefficients[length(estextra.index) + 1,2], digits=3), ")")
+nlogit_results$IV_all0[r2.index] <- c("n.a.")
+
+nlogit_results$IV_all0[wp.index] <- paste0(round(s_nlogit_all_iv00$diagnostics[1,3], digits=3))
+nlogit_results$IV_all0[wpp.index] <- paste0(round(s_nlogit_all_iv00$diagnostics[1,4], digits=3))
+nlogit_results$IV_all0[wsigma.index] <- paste0(round(s_nlogit_all_iv00$diagnostics[2,3], digits=3))
+nlogit_results$IV_all0[wsigmap.index] <- paste0(round(s_nlogit_all_iv00$diagnostics[2,4], digits=3))
+nlogit_results$IV_all0[sargan.index] <- paste0(round(s_nlogit_all_iv00$diagnostics[4,3], digits=3))
+nlogit_results$IV_all0[sarganp.index] <- paste0(round(s_nlogit_all_iv00$diagnostics[4,4], digits=3))
+
+## brand dummy results
+nlogit_results$OLSd_all <- empty.col
+nlogit_results$OLSd_all[estimates.index] <- paste0(round(s_nlogit_all_firmdum$coefficients[1:length(estimates.index),1], digits=3))
+nlogit_results$OLSd_all[estextra.index] <- paste0(round(s_nlogit_all_firmdum$coefficients[length(estimates.index) + 1 :length(estextra.index) ,1], digits=3))
+nlogit_results$OLSd_all[sigma.index] <- paste0(round(s_nlogit_all_firmdum$coefficients[length(estextra.index)  + 1,1], digits=3))
+nlogit_results$OLSd_all[se.index] <- paste0("(", round(s_nlogit_all_firmdum$coefficients[1:length(estimates.index),2], digits=3), ")")
+nlogit_results$OLSd_all[seextra.index] <- paste0("(", round(s_nlogit_all_firmdum$coefficients[length(estimates.index) + 1 :length(estextra.index), 2], digits=3), ")")
+nlogit_results$OLSd_all[sigmase.index] <- paste0("(", round(s_nlogit_all_firmdum$coefficients[length(estextra.index) + 1,2], digits=3), ")")
+nlogit_results$OLSd_all[r2.index] <- as.character(round(s_nlogit_all_firmdum$r.squared, digits=3))
+nlogit_results$OLSd_all[brandfe.index] <- c("YES")
+
+#
+nlogit_results$IVd_all <- empty.col
+nlogit_results$IVd_all[estimates.index] <- paste0(round(s_nlogit_all_firmdum_iv12$coefficients[1:length(estimates.index),1], digits=3))
+nlogit_results$IVd_all[estextra.index] <- paste0(round(s_nlogit_all_firmdum_iv12$coefficients[length(estimates.index) + 1 :length(estextra.index) ,1], digits=3))
+nlogit_results$IVd_all[sigma.index] <- paste0(round(s_nlogit_all_firmdum_iv12$coefficients[length(estextra.index)  + 1,1], digits=3))
+nlogit_results$IVd_all[se.index] <- paste0("(", round(s_nlogit_all_firmdum_iv12$coefficients[1:length(estimates.index),2], digits=3), ")")
+nlogit_results$IVd_all[seextra.index] <- paste0("(", round(s_nlogit_all_firmdum_iv12$coefficients[length(estimates.index) + 1 :length(estextra.index), 2], digits=3), ")")
+nlogit_results$IVd_all[sigmase.index] <- paste0("(", round(s_nlogit_all_firmdum_iv12$coefficients[length(estextra.index) + 1,2], digits=3), ")")
+nlogit_results$IVd_all[r2.index] <- c("n.a.")
+nlogit_results$IVd_all[brandfe.index] <- c("YES")
+
+nlogit_results$IVd_all[wp.index] <- paste0(round(s_nlogit_all_firmdum_iv12$diagnostics[1,3], digits=3))
+nlogit_results$IVd_all[wpp.index] <- paste0(round(s_nlogit_all_firmdum_iv12$diagnostics[1,4], digits=3))
+nlogit_results$IVd_all[wsigma.index] <- paste0(round(s_nlogit_all_firmdum_iv12$diagnostics[2,3], digits=3))
+nlogit_results$IVd_all[wsigmap.index] <- paste0(round(s_nlogit_all_firmdum_iv12$diagnostics[2,4], digits=3))
+nlogit_results$IVd_all[sargan.index] <- paste0(round(s_nlogit_all_firmdum_iv12$diagnostics[4,3], digits=3))
+nlogit_results$IVd_all[sarganp.index] <- paste0(round(s_nlogit_all_firmdum_iv12$diagnostics[4,4], digits=3))
+
+
+@
+%
+<<nlogit_results_out, eval=TRUE, echo=FALSE, results='asis'>>=
+
+strCaption <- paste0("Results with Nested Logit Demand \n (510 Observations)")
+print(xtable(nlogit_results, digits=3, caption=strCaption, label="tbl:nlogit_results"),
+      size="footnotesize", include.rownames=FALSE, include.colnames=FALSE,
+      caption.placement="top", hline.after=NULL, align= c("l", "c", "c","c",  "c", "c", "c", "c", "c"),
+      add.to.row = list(pos = list(-1, nrow(nlogit_results)),
+                        command = c(paste("\\toprule \n",
+                                          "Variable & OLS & IV & IV & OLS & IV & IV & OLS & IV \\\\\n",
+                                          "\\midrule \n"),
+                                    "\\bottomrule \n")
+      )
+)
+@
+%
+
+The first column in Table \ref{tbl:nlogit_results} gives the estimates from a simple OLS estimation. The estimated parameters are of the expected signs, and all are statitically different than 0 except for air conditioning. The estimated parameter on price has a  5 times smaller magnitude than the closest logit specification. All the other magnitudes also decreased. The estimate of $\sigma$ is 0.9, close to 1, and estimated precisely enough to be different than 0, indicating that there is substantial correlation in taste for products in the same size group. Adding all the attributes as before has the now usual effect of reducing the magnitude, and the precision of the estimates, althought the price estimate stays negative and significant.
+
+Columns 3, and 4, give the estimates for the IV 2SLS estimation of the model with the BLP attributes. The model is overidentified, as I have more instruments than endogeneous variables (2). Now the additional instruments include the number of car lines within the same size category, and the characteristics of these cars. I only keep the number of car models in the same nest, and the sum of the characteristics A/C, miles per dollar and size. I use all of my instruments in column 3, however, the Sargan J test reported at the bottom of the table is rejected, indication that some of the moment conditions used are not valid in the data. The Sargan J test uses the excess information from overidentifying moment conditions to test the null hypothesis of having all the moment conditions precisely at 0. In an attempt to alleviate this potential endogeneity of my instruments, I present in column 4 the resuls from an IV estimation using instruments : number of car models by the same manufacturer, number of car models by all other manufacturers, number of car models within the same size category, and the fourth set of instruments. The Sargan J test does not reject the null up to a level of risk of 74\%, and the weak instruments test for both endogeneous variables are rejected (indication that there is substantial correlation between the instruments used and the endogeneous variables). The coefficient on price is now as high in magnitude as what we find in the IV estimation of the simple logit specification. However, the IVs used do not allow to precisely estimate the coefficient $\sigma$. Including firm dummies in the OLS and the IV estimation reduces even further the estimate of the marginal utility of price. $\sigma$ has a problematic negative sign, and cannot be interpreted because it is estimated very imprecisely. 
